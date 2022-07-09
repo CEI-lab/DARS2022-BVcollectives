@@ -28,3 +28,9 @@ of simulations or improving the simulator:
 - `utils.py` contains geometric and other helper functions
 - `param_sweep.py` contains functions for running parameter sweeps
 - `unit_test.py` contains tests for the simulator
+
+
+# Contributors
+
+Jack A. Defay
+Alli Nilles
