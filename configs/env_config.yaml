@@ -1,0 +1,12 @@
+# assumes torus, ss x ss
+# assumes obstacles are in (0,ss) x (0,ss)
+# points in CCW order
+# does not check if collision results in free space, so don't put obstacles too
+# close together
+obstacles:
+    - [[0, 0], [500, 0], [500, 10], [0, 10]]
+    - [[0, 0], [0, 500], [10, 500], [10, 0]]
+    - [[500, 500], [0, 500], [0, 490], [500, 490]]
+    - [[500, 500], [500, 0], [490, 0], [490, 500]]
+    - [[245, 500], [255, 500], [255, 300], [245, 300]]
+    - [[245, 0], [255, 0], [255, 200], [245, 200]]

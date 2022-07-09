@@ -1,0 +1,19 @@
+# Global parameters for all sims
+# All units are in pixels and discrete time iterations. Angles are as a proportion of pi.
+
+world:
+  sim_time: 2000
+  screen_size: 250
+
+robot:
+  num_robots: 2
+  robot_vel: 4.
+  lim_distance: 120.0
+  lim_angle: 0.333333
+  angle_incr: 0.1
+  rep_range: 0
+  rep_factor: 3
+  split: 0.5
+  lightscale: 1
+  influence_scale: 1
+  noise_factor: 0.001
