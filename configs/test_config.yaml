@@ -1,0 +1,12 @@
+robot:
+  angle_incr: 0.01
+  lightscale: 1
+  lim_angle: 0.25
+  lim_distance: 100
+  num_robots: 20
+  rep_factor: 3
+  rep_range: 0
+  robot_vel: 4
+world:
+  screen_size: 500
+  sim_time: 200

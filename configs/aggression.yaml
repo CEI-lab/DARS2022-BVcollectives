@@ -1,0 +1,26 @@
+# robot class specific variables
+# taxis-kinesis combination: agg
+
+# directional sensing
+# directional stimulus
+dir_dir:
+    - attract: 1
+    - speed_up: 1
+    - directional_sense: 1
+    - directional_stimulus: 1
+
+# directional sensing
+# omnidirectional stimulus
+dir_omni:
+    - attract: 1
+    - speed_up: 1
+    - directional_sense: 0
+    - directional_stimulus: 1
+
+# omnidirectional sensing
+# omnidirectional stimulus
+omni_omni:
+    - attract: 1
+    - speed_up: 1
+    - directional_sense: 0
+    - directional_stimulus: 0

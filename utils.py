@@ -55,9 +55,11 @@ def setup_big_array(small, offset):
 
     return big_coords
 
-def setup_big_arrays(robots, ss):
-    # generate the big grid for toroidal calculations
+# generate the big grid for toroidal calculations
+# only works for square environments
+def setup_big_arrays(robots):
     n = robots.num
+    ss = robots.ss
     big_coords = setup_big_array(robots.coords, ss)
     big_lights = np.array([robots.lights]*5).flatten()
 
@@ -70,10 +72,23 @@ def setup_big_arrays(robots, ss):
 
     return big_coords, big_lights, big_angles
 
+# returns +1 if v2 is pointing to the left of an agent looking along v1
+# return -1 otherwise
+# assumes v1 and v2 are vectors centered on the origin
+def vector_to_left(heading, vec):
+    x, y = np.cos(heading), np.sin(heading)
+    return np.sign(x*vec[1] - y*vec[0])
+
+def vector_to_left_inds(heading, pts):
+    signs = vector_to_left(heading, pts)
+    rind = np.where(signs <=0)
+    lind = np.where(signs > 0)
+    return rind, lind
+
 # calc whether points are left or right of a given heading centered at the origin
 def pts_left_right(heading, pts):
     n = pts.shape[0]
-    perp = heading - np.pi/2 # 90 degrees clockwise
+    perp = heading - (np.pi/2) # 90 degrees clockwise
     unit_perp = np.array([np.cos(perp), np.sin(perp)])
     dot_perp = np.dot(np.full((n,2),unit_perp), pts.T)
     diag_perp = np.diagonal(dot_perp)
@@ -155,9 +170,10 @@ def load_global_config(filename):
         # TODO cast here to desired type: int for all?
         sim_time = param_list["world"]["sim_time"]
         ss = param_list["world"]["screen_size"]
+        n = param_list["robot"]["num_robots"]
 
 
-        return sim_time, ss
+        return sim_time, ss, n
     except Exception as e:
         print("Error loading file: " + str(filename))
         print(e)
@@ -182,7 +198,6 @@ def load_robot_config(filename):
         with open(filename) as file:
             param_list = yaml.load(file,Loader=yaml.FullLoader)
 
-            params["num_robots"] = param_list["robot"]["num_robots"]
             params["robot_vel"] = param_list["robot"]["robot_vel"]
             params["lim_distance"] = param_list["robot"]["lim_distance"]
             params["lim_angle"] = param_list["robot"]["lim_angle"]*np.pi
@@ -193,19 +208,18 @@ def load_robot_config(filename):
             params["influence_scale"] = param_list["robot"]["influence_scale"]
             params["noise_factor"] = param_list["robot"]["noise_factor"]
             params["split"] = param_list["robot"]["split"]
-            params["full_omni"] = param_list["robot"]["full_omni"]
+            params["num_robots"] = param_list["robot"]["num_robots"]
         return params
     except Exception as e:
         print("Error loading file: " + str(filename))
         print(e)
         raise Exception("Error loading file: " + str(filename))
 
-def load_configuration_config(filename):
+def load_behavior_config(filename):
     params = {}
     try:
         with open(filename) as file:
-            param_list = yaml.load(file,Loader=yaml.FullLoader)
-            params = param_list
+            params = yaml.load(file,Loader=yaml.FullLoader)
         return params
     except Exception as e:
         print("Error loading file: " + str(filename))

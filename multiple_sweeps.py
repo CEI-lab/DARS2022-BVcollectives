@@ -1,95 +1,139 @@
 import numpy as np
 
 import utils
-# import robots
 import param_sweep
+
+iterations = 1
 
 if __name__ == '__main__':
 
-    sim_time, ss = utils.load_global_config("configs/global_config.yaml")
+    gconfig = "configs/global_config.yaml"
 
-    ############################ angle influence ###############################################
+    ############################ angle influence full directional ###############################################
 
-    # variables = "angle_influence"
-    # metrics = np.array(["dist", "energy"])
-    # iterations = 20
+    variables = "angle_influence"
+    metrics = np.array(["nnd", "energy"])
+    type = "dir_dir"
 
-    # try:
-    #     param_sweep.sweep("configs/global_config.yaml", "love", metrics, variables, iterations, sim_time, ss)
-    # except Exception as e:
-    #     print("Exception occured:")
-    #     print(e)
+    #try:
+    #    param_sweep.sweep(gconfig, "love", metrics, variables, type, iterations)
+    #except Exception as e:
+    #    print("Exception occured:")
+    #    print(e)
 
-    # try:
-    #     param_sweep.sweep("configs/global_config.yaml", "aggression", metrics, variables, iterations, sim_time, ss)
-    # except Exception as e:
-    #     print("Exception occured:")
-    #     print(e)
+    #try:
+    #    param_sweep.sweep(gconfig, "aggression", metrics, variables, type, iterations)
+    #except Exception as e:
+    #    print("Exception occured:")
+    #    print(e)
 
-    # try:
-    #     param_sweep.sweep("configs/global_config.yaml", "fear", metrics, variables, iterations, sim_time, ss)
-    # except Exception as e:
-    #     print("Exception occured:")
-    #     print(e)
+    #try:
+    #    param_sweep.sweep(gconfig, "fear", metrics, variables, type, iterations)
+    #except Exception as e:
+    #    print("Exception occured:")
+    #    print(e)
 
-    # try:
-    #     param_sweep.sweep("configs/global_config.yaml", "curiosity", metrics, variables, iterations, sim_time, ss)
-    # except Exception as e:
-    #     print("Exception occured:")
-    #     print(e)
+    #try:
+    #    param_sweep.sweep(gconfig, "curiosity", metrics, variables, type, iterations)
+    #except Exception as e:
+    #    print("Exception occured:")
+    #    print(e)
 
     ############################ angle influence semi-omni ###############################################
 
     # variables = "angle_influence"
-    # metrics = np.array(["dist", "energy"])
-    # iterations = 20
+    # metrics = np.array(["nnd", "energy"])
+    # type = "dir_omni"
 
     # try:
-    #     param_sweep.sweep("configs/global_config.yaml", "love_lantern", metrics, variables, iterations, sim_time, ss)
+    #      param_sweep.sweep(gconfig, "love", metrics, variables, type, iterations)
     # except Exception as e:
     #     print("Exception occured:")
     #     print(e)
 
     # try:
-    #     param_sweep.sweep("configs/global_config.yaml", "aggression_lantern", metrics, variables, iterations, sim_time, ss)
+    #     param_sweep.sweep(gconfig, "aggression", metrics, variables, type, iterations)
     # except Exception as e:
     #     print("Exception occured:")
     #     print(e)
 
     # try:
-    #     param_sweep.sweep("configs/global_config.yaml", "fear_lantern", metrics, variables, iterations, sim_time, ss)
+    #     param_sweep.sweep(gconfig, "fear", metrics, variables, type, iterations)
     # except Exception as e:
     #     print("Exception occured:")
     #     print(e)
 
     # try:
-    #     param_sweep.sweep("configs/global_config.yaml", "curiosity_lantern", metrics, variables, iterations, sim_time, ss)
+    #     param_sweep.sweep(gconfig, "curiosity", metrics, variables, type, iterations)
     # except Exception as e:
     #     print("Exception occured:")
     #     print(e)
 
-    ############################## influence noise ##############################################
+    ############################ angle influence full omni ###############################################
 
-    # variables = "influence_noise"
-    # configs = ["love","aggression","fear","curiosity"]
-    # metrics = ["dist", "energy"]
-    # iterations = 20
+    # variables = "angle_influence"
+    # metrics = np.array(["nnd", "energy"])
+    # type = "omni_omni"
 
     # try:
-    #     param_sweep.sweep_noise("configs/global_config.yaml", configs, metrics, variables, iterations, sim_time, ss)
+    #      param_sweep.sweep(gconfig, "love", metrics, variables, type, iterations)
     # except Exception as e:
     #     print("Exception occured:")
     #     print(e)
 
-    # ######################3######## influence noise lantern #######################################
+    # try:
+    #     param_sweep.sweep(gconfig, "aggression", metrics, variables, type, iterations)
+    # except Exception as e:
+    #     print("Exception occured:")
+    #     print(e)
 
-    variables = "influence_noise"
-    configs = ["love_lantern","aggression_lantern","fear_lantern","curiosity_lantern"]
-    metrics = ["dist", "energy"]
-    iterations = 20
+    # try:
+    #     param_sweep.sweep(gconfig, "fear", metrics, variables, type, iterations)
+    # except Exception as e:
+    #     print("Exception occured:")
+    #     print(e)
+
+    # try:
+    #     param_sweep.sweep(gconfig, "curiosity", metrics, variables, type, iterations)
+    # except Exception as e:
+    #     print("Exception occured:")
+    #     print(e)
+
+    ############################## noise full dir ##############################################
+
+    variables = "noise"
+    type = "dir_dir"
+    configs = ["love","aggression","fear","curiosity"]
+    metrics = ["nnd", "energy"]
 
     try:
-        param_sweep.sweep_noise("configs/global_config.yaml", configs, metrics, variables, iterations, sim_time, ss)
+        param_sweep.sweep_noise("configs/global_config.yaml", configs, metrics, variables, type, iterations)
     except Exception as e:
         print("Exception occured:")
         print(e)
+
+    # ############################## influence noise dir-omni #######################################
+
+    # variables = "noise"
+    # type = "dir_omni"
+    # configs = ["love","aggression","fear","curiosity"]
+    # metrics = ["nnd", "energy"]
+
+    # try:
+    #     param_sweep.sweep_noise("configs/global_config.yaml", configs, metrics, variables, type, iterations)
+    # except Exception as e:
+    #     print("Exception occured:")
+    #     print(e)
+
+    # ############################## influence noise omni-omni #######################################
+
+    # variables = "noise"
+    # type = "omni_omni"
+    # configs = ["love","aggression","fear","curiosity"]
+    # metrics = ["nnd", "energy"]
+
+    # try:
+    #     param_sweep.sweep_noise("configs/global_config.yaml", configs, metrics, variables, type, iterations)
+    # except Exception as e:
+    #     print("Exception occured:")
+    #     print(e)

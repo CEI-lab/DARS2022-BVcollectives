@@ -17,3 +17,4 @@ robot:
   lightscale: 1
   influence_scale: 1
   noise_factor: 0.001
+  full_omni: 0

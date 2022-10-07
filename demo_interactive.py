@@ -18,14 +18,14 @@ FPS = 55
 previous_time_test = time.time()
 
 #variables for saving data
-sim_data = []
 
 tag = "fear"
+type = "dir_dir"
+
 vid_outname = "videos/demo_video.mp4"
 global_filename = "configs/global_demo_config.yaml"
-c_filename = "configs/" + tag + "_config.yaml"
+c_filename = "configs/" + tag + ".yaml"
 e_filename = "configs/env_config.yaml"
-# metric = np.array(["chain", "dist", "angle"])
 metric = np.array([])
 
 # set up folder for saving frames
@@ -37,7 +37,8 @@ if SAVE_VID:
 
 ############################### MAIN ##############################################
 
-sim_time, ss = utils.load_global_config(global_filename)
+sim_data = []
+sim_time, ss, num = utils.load_global_config(global_filename)
 obstacles = utils.load_environment_config(e_filename)
 width = ss # for vid
 height = ss # for vid
@@ -52,7 +53,7 @@ font = pygame.font.SysFont("Arial", 18)
 colors = utils.gen_colors(20)
 
 # init robots
-robots = robot_class(global_filename, c_filename, ss, DEMO)
+robots = Robots(global_filename, c_filename, type, ss, DEMO)
 # make sure controllable robot has influence
 robots.lights[0] = 100000
 robots.v[0] = 1
@@ -94,13 +95,13 @@ while(running):
                     robots.v[0]-=0.5
                 print("velocity: " + str(robots.v[0]))
             # change behavior
-            if event.key == pygame.K_DOWN or event.key == ord('1'):
+            if event.key == event.key == ord('1'):
                 if(robots.attract == 0):
                     robots.attract = 1
                 else:
                     robots.attract = 0
                 print("attract: " + str(robots.attract))
-            if event.key == pygame.K_DOWN or event.key == ord('2'):
+            if event.key == event.key == ord('2'):
                 if(robots.speed_up == 0):
                     robots.speed_up = 1
                 else:
@@ -118,7 +119,7 @@ while(running):
             pygame.draw.line(screen, (100,100,100), p1, p2)
 
     # setup big arrays for each frame
-    big_coords, big_lights, big_angles = utils.setup_big_arrays(robots, ss)
+    big_coords, big_lights, big_angles = utils.setup_big_arrays(robots)
     # print(robots.angles)
 
     # update controllable robot

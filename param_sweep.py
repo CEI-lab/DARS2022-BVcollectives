@@ -3,7 +3,7 @@ import numpy as np
 import random
 import pandas as pd
 import matplotlib.pyplot as plt
-import sys
+import sys, os
 import time
 
 # custom imports
@@ -16,14 +16,23 @@ np.set_printoptions(threshold=sys.maxsize)
 
 # vary these values to produce different behavior
 # influence_scale = 1
-# lim_angle = np.pi/2
-# noise_factor = 0.01
+noise_factor = 0.01388888 # 0.013888pi = 5 degrees in radians
 
 previous_time_test = time.time()
 
+
+datadir = './data'
+figdir = './plots'
+if not os.path.exists(datadir):
+    os.mkdir(datadir)
+if not os.path.exists(figdir):
+    os.mkdir(figdir)
+
 ########################## FUNCTIONS ###########################################3
 
-def iteration(metric, global_filename, c_filename, sim_time, ss):
+def iteration(metric, global_filename, c_filename, type):
+
+    sim_time, ssize, num_bots = utils.load_global_config(global_filename)
     t = 0
     # list to hold all of the adjacency matrices
     data_list = [] 
@@ -31,7 +40,7 @@ def iteration(metric, global_filename, c_filename, sim_time, ss):
     group_list_record = []
 
     # init robots
-    robots = robot_class(global_filename, c_filename, ss, False)
+    robots = Robots(global_filename, c_filename, type, ssize, False)
     robots.lim_angle = lim_angle
     robots.influence_scale = influence_scale
     robots.noise_factor = noise_factor
@@ -42,6 +51,7 @@ def iteration(metric, global_filename, c_filename, sim_time, ss):
     angle_metric_list = []
     dist_metric_list = []
     energy_metric_list = []
+    nnd_metric_list = []
 
     # sim loop
     # while(t<sim_time-1):
@@ -52,7 +62,7 @@ def iteration(metric, global_filename, c_filename, sim_time, ss):
         # temporary variable to accumulate the row influence
         data_accum = np.zeros((robots.num,robots.num))
 
-        big_coords, big_lights, big_angles = utils.setup_big_arrays(robots, ss)
+        big_coords, big_lights, big_angles = utils.setup_big_arrays(robots)
 
         # update robot positions
         for r in range(robots.num):
@@ -64,46 +74,41 @@ def iteration(metric, global_filename, c_filename, sim_time, ss):
 
             if("dist" in metric):
                 data_accum[r] = return_data
+            if("nnd" in metric):
+                data_accum[r] = return_data
 
-        # sim_data.append([robots.coords[:,0].copy(), robots.coords[:,1].copy(), robots.angles.copy(), robots.lights.copy()])
-
-        
-        if("chain" in metric):
-            group_list_record.append(group_list)
-            group_list = [np.zeros(robots.num)]
+       
         if("dist" in metric):
             dist_metric_list.append(np.mean(data_accum))
-        if("angle" in metric):
-            angle_metric_list.append(np.std(robots.angles))
+        if("nnd" in metric):
+            nnd_metric_list.append(np.mean(data_accum))
         if("energy" in metric):
             energy_metric_list.append(np.mean(np.square(robots.v)))
         
 
     return_metrics = []
-    if("chain" in metric):
-        chain_metric = np.max(np.sum(group_list_record,axis=2),axis=1)
-        return_metrics.append(chain_metric)
     if("dist" in metric):
         return_metrics.append(dist_metric_list)
-    if("angle" in metric):
-        return_metrics.append(angle_metric_list)
+    if("nnd" in metric):
+        return_metrics.append(nnd_metric_list)
     if("energy" in metric):
         return_metrics.append(energy_metric_list)
 
     return np.array(return_metrics)
 
 
-def sweep(filename, config, metric, variables, iterations, sim_time, ss):
-    # assert len(metric) == 4  # because right now the code is not parameterized correctly for any other number
+def sweep(filename, config, metric, variables, type, iterations=20):
     # make these modifiable
     global lim_angle
     global influence_scale
     global noise_factor
 
+    sim_time, ssize, num_bots = utils.load_global_config(filename)
+
     # initialize timing variable
     previous_time = time.time()
 
-    config_filename = "configs/" + config + "_config.yaml"
+    config_filename = "configs/" + config + ".yaml"
 
     # run sweep
     # angle_list = []
@@ -116,21 +121,16 @@ def sweep(filename, config, metric, variables, iterations, sim_time, ss):
             # influence_scale = 1+4*n/10
             noise_factor = 0.45 - 0.05*n
         for m in range(10):
-            influence_scale = 5.5 - 0.5*m # 5.5, 5.0, ... , 1
+            influence_scale = 0.25*(m+1)
             # noise_factor = 0.02*m
             data_list = []
             for p in range(iterations):
-                iter_data = iteration(metric, filename, config_filename, sim_time, ss)
+                iter_data = iteration(metric, filename, config_filename, type)
                 data_list.append(np.mean(iter_data[:,sim_time-10:sim_time],axis=1))
-            print("iter " + str(10*n+m) + ", value: " + str(np.mean(data_list,axis=0)) + ", time: " + str(time.time()-previous_time))
+            print("square " + str(10*n+m) + " of 100, value: " + str(np.mean(data_list,axis=0)) + ", time: " + str(time.time()-previous_time))
             previous_time=time.time()
-            # influence_list.append(np.mean(data_list,axis=0))
             mean_accum[n,m] = np.mean(data_list,axis=0)
             std_accum[n,m] = np.std(data_list,axis=0)
-        # angle_list.append(influence_list)
-
-    # mean_accum = mean_accum.reshape(10,10,len(metric)).swapaxes(1,2).swapaxes(0,1)
-    # std_accum = std_accum.reshape(10,10,len(metric)).swapaxes(1,2).swapaxes(0,1)
 
     # plot heatmap
     # TODO: parameterize this to work for different numbers of plots
@@ -145,35 +145,32 @@ def sweep(filename, config, metric, variables, iterations, sim_time, ss):
             plt.ylabel("Noise")
             ax.set_yticks(np.arange(10), labels=["","0.4","","0.3","","0.2","","0.1","","0.0"])
         plt.xlabel("Influence Scaler")
-        ax.set_xticks(np.arange(10), labels=["","1/5","","1/4","","1/3","","1/2","","1"])
+        ax.set_xticks(np.arange(10), labels=["","0.5","","1","","1.5","","2","","2.5"])
         # ax.set_xticks(np.arange(10), labels=["0.0","","0.04","","0.08","","0.12","","0.16",""])
         cbar = plt.colorbar(im)
-        if(metric[d] == "chain"):
-            plt.title("Average Influence")
-            im.set_clim(0,13)
-            cbar.set_label("Average Group Size at Convergence")
-        elif(metric[d] == "dist"):
+        if(metric[d] == "dist"):
             plt.title("Distance Between Agents")
             im.set_clim(0,270)
             cbar.set_label("Average Distance Between Agents at Convergence")
-        elif(metric[d] == "angle"):
-            plt.title("Distribution of Headings")
-            im.set_clim(0,5)
-            cbar.set_label("Average Distribution of Headings at Convergence (std dev)")
-        elif(metric[d] == "energy"):
+        if(metric[d] == "nnd"):
+            plt.title("Nearest Neighbor Distance Between Agents")
+            im.set_clim(0,55)
+            cbar.set_label("NND Between Agents at Convergence")
+        if(metric[d] == "energy"):
             plt.title("Kinetic Energy")
             im.set_clim(0,15)
             cbar.set_label("Average Kinetic Energy of system at Convergence")
         # save the plot with a unique title for its configuration
-        plt.savefig("plots/" + variables + "_" + metric[d] + "_" + config + str(iterations) + "_plot.png")
+        outname = variables + '_' + config +  "_" + type + "_" + metric[d] + "_" + str(iterations)
+        plt.savefig("plots/" + outname +  "_plot.png")
 
         # save the data as a backup so we can generate a new plot later if we want to change purely cosmetic things
         data_mean = pd.DataFrame(data = mean_accum[:,:,d].flatten(), columns = [metric[d]])
-        data_mean.to_csv("data/" + variables + "_" + metric[d] + "_" + config + str(iterations) + "_mean_data.csv", line_terminator = "")
+        data_mean.to_csv("data/" + outname + "_mean_data.csv", line_terminator = "")
         data_std = pd.DataFrame(data = std_accum[:,:,d].flatten(), columns = [metric[d]])
-        data_std.to_csv("data/" + variables + "_" + metric[d] + "_" + config + str(iterations) + "_std_data.csv", line_terminator = "")
+        data_std.to_csv("data/" + outname + "_std_data.csv", line_terminator = "")
 
-def sweep_noise(filename, configs, metric, variables, iterations, sim_time, ss):
+def sweep_noise(filename, configs, metric, variables, type, iterations=20):
     # assert len(metric) == 4  # because right now the code is not parameterized correctly for any other number
     # make these modifiable
     global lim_angle
@@ -183,6 +180,8 @@ def sweep_noise(filename, configs, metric, variables, iterations, sim_time, ss):
     influence_scale = 1
     lim_angle = np.pi/3
     noise_factor = 0.01
+
+    sim_time, ssize, num_bots = utils.load_global_config(filename)
 
     fig, ax = plt.subplots(1,2, figsize=(14, 6))
 
@@ -195,7 +194,7 @@ def sweep_noise(filename, configs, metric, variables, iterations, sim_time, ss):
         # initialize timing variable
         previous_time = time.time()
 
-        config_filename = "configs/" + config + "_config.yaml"
+        config_filename = "configs/" + config + ".yaml"
 
         # run sweep
         # angle_list = []
@@ -206,9 +205,9 @@ def sweep_noise(filename, configs, metric, variables, iterations, sim_time, ss):
             # noise_factor = 0.01*m
             data_list = []
             for p in range(iterations):
-                iter_data = iteration(metric, filename, config_filename, sim_time, ss)
+                iter_data = iteration(metric, filename, config_filename, type)
                 data_list.append(np.mean(iter_data[:,sim_time-10:sim_time],axis=1))
-            print("iter " + str(m) + "_" + config + ", value: " + str(np.mean(data_list,axis=0)) + ", time: " + str(time.time()-previous_time))
+            print("iter " + str(m) + " of 10, value: " + str(np.mean(data_list,axis=0)) + ", time: " + str(time.time()-previous_time))
             previous_time=time.time()
             mean_accum[m] = np.mean(data_list,axis=0)
             std_accum[m] = np.std(data_list,axis=0)
@@ -221,11 +220,13 @@ def sweep_noise(filename, configs, metric, variables, iterations, sim_time, ss):
         ax[1].fill_between(noise, mean_accum[:,1]-std_accum[:,1], mean_accum[:,1]+std_accum[:,1], alpha=0.3)
 
         # save data
-        data = pd.DataFrame(data=mean_accum[:,0], columns=["mean dist"])
+        outname = variables + '_' + config +  "_" + type + "_" + str(iterations) + ".csv"
+        data = pd.DataFrame(data=mean_accum[:,0], columns=["mean nnd"])
         data["mean ke"] = mean_accum[:,1]
-        data["std dist"] = std_accum[:,0]
+        data["std nnd"] = std_accum[:,0]
         data["st ke"] = std_accum[:,1]
-        data.to_csv("data/noise_" + config + "_sim_data.csv")
+        outdat = os.path.join(datadir, outname)
+        data.to_csv(outdat)
 
         lines.append(line1)
 
@@ -239,15 +240,12 @@ def sweep_noise(filename, configs, metric, variables, iterations, sim_time, ss):
 
     plt.legend(handles=lines,labels=configs)
         
-    plt.savefig("plots/" + variables + "_" + str(iterations) + "_plot.png")
+    outplot = os.path.join(datadir, variables + "_" + str(iterations) + "_" + type + "_plot.png")
+    plt.savefig(outplot)
 
-
-# configs: l - love, a - aggression, f - fear, c - curiosity
-# metrics: chain = avg chain length at convergence, dist = nearest neighbor, avg number of agents within a certain distance of each agent
-#          angle = std dev of the angles of all agents
 
 if __name__ == '__main__':
 
-    sim_time, ss = utils.load_global_config("configs/global_config.yaml")
-    metrics = np.array(["chain", "dist", "angle", "energy"])
-    sweep("configs/global_config.yaml", "love", metrics, "angle_influence", 2, sim_time, ss)
+    sim_time, ssize, num_bots = utils.load_global_config("configs/global_config.yaml")
+    metrics = np.array(["nnd", "energy"])
+    sweep("configs/global_config.yaml", "love", metrics, "angle_influence", "dir_dir", 2)

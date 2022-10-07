@@ -15,6 +15,6 @@ robot:
   rep_factor: 3
   split: 0.5
   lightscale: 0.1
-  influence_scale: 1
-  noise_factor: 0.0138888
+  influence_scale: 2.5
+  noise_factor: 0.000138888
   full_omni: 0

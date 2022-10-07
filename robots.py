@@ -4,8 +4,8 @@ import random
 
 import utils
 
-class robot_class():
-    def __init__(self, filename, c_filename, ss, DEMO=0):
+class Robots():
+    def __init__(self, filename, c_filename, type, ss, DEMO=0):
         params = utils.load_robot_config(filename)
         num = params["num_robots"]
 
@@ -36,12 +36,13 @@ class robot_class():
         self.influence_scale = params["influence_scale"]
         self.noise_factor = params["noise_factor"]
         self.split = params["split"]
-        self.full_omni = params["full_omni"]
 
-        params = utils.load_configuration_config(c_filename)
+        all_params = utils.load_behavior_config(c_filename)
+        params = {k: v for d in all_params[type] for k, v in d.items()} # unpack yaml...
         self.attract = params["attract"]
         self.speed_up = params["speed_up"]
-        self.directional_light = params["directional_light"]
+        self.directional_light = params["directional_stimulus"]
+        self.full_omni = not bool(params["directional_sense"])
 
         self.DEMO = DEMO
         if(DEMO):
@@ -53,72 +54,168 @@ class robot_class():
         c = self.coords[r]
         # print(c)
         # add movement noise
-        v = self.v[r]+np.random.normal(0,noise_factor*self.max_vel)
+        self.v[r] = self.v[r]+np.random.normal(0,noise_factor*self.max_vel)
         # cap value
-        if(v>4):
-            v=4
-        elif(v<0):
-            v=0
-        theta = self.angles[r]+np.random.normal(0,noise_factor*np.pi)
-        xnew = c[0] + v*np.cos(theta)
-        ynew = c[1] + v*np.sin(theta)
+        if(self.v[r]>4):
+            self.v[r]=4
+        elif(self.v[r]<0):
+            self.v[r]=0
+        self.angles[r] = (self.angles[r]+np.random.normal(0,noise_factor*np.pi))%(2*np.pi)
+        xnew = c[0] + self.v[r]*np.cos(self.angles[r])
+        ynew = c[1] + self.v[r]*np.sin(self.angles[r])
 
         # update coords, respects torus
         self.coords[r] = np.array(utils.wrap_pt([xnew, ynew], self.ss, self.ss, offset=(0,0)))
 
     def distance_calc(self, diff, r, lim_distance):
         distances = np.linalg.norm(diff,axis=1)
-        # the value for the current robot doesn't matter because it is multiplied by 0 in the next step
-        distances[r] = 1
+        distances[r] = lim_distance
+        valid_dist_ind = np.where(distances<lim_distance)
+        # the value for the current robot doesn't matter because it is multiplied by 0 in the next steps
+        distances[distances>lim_distance] = lim_distance
+        # print(distances)
         # invert 
         with np.errstate(divide='ignore'):
             inv_distances = 1-np.square(distances/lim_distance)
-        inv_distances[r] = 0
-        distances[r]=1000
-        # zero out distances past the limit, set limit to half of the screen size minus a small cushion of 10 pixels for safety
-        valid_dist_ind = np.where(distances<lim_distance)
+        # inv_distances[r] = 0
+        # distances[r]=1000
+        # print(inv_distances)
+        # print(inv_distances[valid_dist_ind])
 
         inv_distances[inv_distances>1] = 1
-        return inv_distances, valid_dist_ind[0]
+        return inv_distances, valid_dist_ind[0], distances
 
-    def angle_calc(self, r, lim_angle, big_coords, big_angles):
-        # calc angles between robot and light sources
-        # first calc the difference in headings
-        heading_angles = (big_angles - self.angles[r])
-        # then calc the angle between agents from their positions, subtract pi/2 to correct reference frame
-        coord_angles = np.arctan2((big_coords[:,1]-big_coords[r,1]),(big_coords[:,0] - big_coords[r,0])) - np.pi/2
-        # the effective angle between the light of the lead robot to the following robot is the sum of the position based angle and the difference in their headings, the abs is importnat
-        angles = np.abs(coord_angles + heading_angles)
-        valid_angle_ind = np.where(angles<lim_angle)[0]
+    # get indices of agents "above" and "below" in global coordinates
+    def agents_above_below(self, r, th_coords):
+
+        up_all = np.where(th_coords <= np.pi)
+        down_all = np.setdiff1d(np.arange(self.num), up_all) # all that is not up is down
+
+        up = np.setdiff1d(up_all, np.array([r])) # remove self if present
+        down = np.setdiff1d(down_all, np.array([r])) # remove self if present
+
+        return up, down
+
+
+    def calc_alpha(self, r, angles, th_coords):
+        alpha = np.zeros(len(angles))
+
+        # this can be vectorized using the same method as above
+        for i in range(len(angles)):
+            # check exceptions
+            if ((np.pi <= th_coords[i] and th_coords[i] < 2*np.pi) and (0 <= angles[r] and angles[r] < th_coords[i] - np.pi)):
+                alpha[i] = th_coords[i] - np.pi - angles[r]
+            elif ((np.pi <= th_coords[i] and th_coords[i] < 2*np.pi) and (np.pi - th_coords[i] <= angles[r] and angles[r] < th_coords[i])):
+                alpha[i] = th_coords[i] - angles[r]
+            else:
+                alpha[i] = th_coords[i] + np.pi - angles[r]
+
+            if alpha[i] > np.pi:
+                alpha[i] -= 2*np.pi
+
+        return alpha
+
+    # beta is the angular coordinate of the leader in the follower's reference frame
+    # beta = 0 when follower is aimed directly at leader
+    def calc_beta(self, r, angles, th_coords):
+        beta = np.zeros(len(angles))
+
+        # this can be vectorized using the same method as above
+        for i in range(len(angles)):
+            # check exceptions
+            if (0 <= th_coords[i] and th_coords[i] < np.pi and (th_coords[i]+np.pi <= angles[r] and angles[r] < 2*np.pi)):
+                beta[i] = th_coords[i] + 2*np.pi - angles[r]
+            elif (np.pi <= th_coords[i] and th_coords[i] < 2*np.pi and 0 <= angles[r] and angles[r] < th_coords[i]-np.pi):
+                beta[i] = th_coords[i] - 2*np.pi - angles[r]
+            else:
+                beta[i] = th_coords[i] - angles[r]
+
+        return beta
+
+    # determines visibility from agent r to all other agents
+    # under directional light / sensing constraints
+    # valid_leader is a list of agent indices such that agent r is in each agent i's light cone
+    # valid_follower is a list of agent indices where each agent i is in agent r's sensing cone
+    def valid_angle(self, diff, r, lim_angle, coords, angles):
+
+        # diff is vector from possible "follower" (agent r) to possible "leader" (agent i)
+        # diff = coords[:] - coords[r]
+        # print(diff)
+        # print(np.arctan2(diff[:,1],diff[:,0]))
+        # print(np.arctan2(diff[:,1],diff[:,0])%(2*np.pi))
+        th_coords = np.arctan2(diff[:,1],diff[:,0])%(2*np.pi)
+
+        valid_sum = []
+        beta = self.calc_beta(r, angles, th_coords)
+        alpha = self.calc_alpha(r, angles, th_coords)
+
+        # th_coords[th_coords > 2*np.pi-lim_angle] = th_coords - 2*np.pi
+        valid_leader = np.setdiff1d(np.where(np.abs(angles - th_coords) <= lim_angle)[0], [r]) # the [0] is because of the weird return of np.where
+        valid_leader_phase_adjusted = np.setdiff1d(np.where(np.abs(angles - th_coords-2*np.pi) <= lim_angle)[0], [r])
+        valid_leader = np.union1d(valid_leader, valid_leader_phase_adjusted)
+        valid_follower = np.setdiff1d(np.where(np.abs(angles[r] - th_coords) <= lim_angle)[0], [r]) # the setdiff1d is to remove self from the list
+        valid_follower_phase_adjusted = np.setdiff1d(np.where(np.abs(angles[r] - th_coords - 2*np.pi) <= lim_angle)[0], [r])
+        valid_follower = np.union1d(valid_follower, valid_follower_phase_adjusted)
+        # valid_sum = np.union1d(valid_leader, valid_follower) # dummy variable to conform to the return statement of valid_angle()
+
+        # print(angles*180/np.pi)
+        # print(th_coords)
+        # print(angles)
+        # print(np.abs(angles - th_coords))
+        # print(valid_leader)
+        # print(np.abs(angles[r] - th_coords))
+        # print(valid_follower)
         
+        return valid_leader, valid_follower, beta
+
+    def angle_calc(self, diff, r, lim_angle, big_coords, big_angles):
+        # calc angles between robot and light sources
+        valid_leader, valid_follower, beta = self.valid_angle(diff, r, lim_angle, big_coords, big_angles)
+        
+        # valid_angle_ind = np.intersect1d(valid_sum, valid_angle_ind)
+
+        # directional: constant stimulus within the cone
+        # percieved light is a function of incident light angle on sensor (beta)
         if(self.directional_light):
-            angle_scale = 1-np.square(angles/lim_angle)
+            valid_angle_ind = np.intersect1d(valid_leader, valid_follower)
+            # angle_scale = np.pi + big_angles - (np.arctan2((big_coords[r,1]-big_coords[:,1]),(big_coords[r,0] - big_coords[:,0])) % (2*np.pi))
+            # angle_scale = 1-np.square(beta/lim_angle)
+            angle_scale = 1-np.square(beta/lim_angle)
             angle_scale[r] = 0
-        # semi-omni light
-        else:
-            # if lantern light, then make the angles scale 1 because the influence is independent of angles, and make valid_angle_ind a complete list because all angles are valid
+            
+        # semi-omni; constrain follower windshield but have omnidirectional stimulus
+        elif(not self.full_omni):
+            valid_angle_ind = valid_follower
+            # angle scale is 1 everywhere because the influence is independent of incoming light angle
             angle_scale = np.full(shape=self.num*5,fill_value=1)
 
         # full omni
-        if(not self.directional_light and self.full_omni):
+        else:
+            angle_scale = np.full(shape=self.num*5,fill_value=1)
             valid_angle_ind = np.where(angle_scale>0)[0]
+            
 
         angle_scale[angle_scale>1] = 1
 
         return angle_scale, valid_angle_ind
 
 
+    # TODO: what is influence skew? *this is for the demo where one of the agents has significantly greater influence than the other agents
     def direction_calc(self, heading, diff, valid_angle_ind, valid_dist_ind, inv_distances, angle_scale, influence_scale, lights):
         valid_ind = np.intersect1d(valid_angle_ind, valid_dist_ind)
         rind, lind = utils.pts_left_right(heading, diff)
         rind = np.intersect1d(rind, valid_ind)
         lind = np.intersect1d(lind, valid_ind)
 
+        # print(valid_ind)
+
         # calc right and left
-        # right_tot = np.sum(lights[rind]*inv_distances[rind]*angle_scale[rind])/(influence_scale)
-        # left_tot = np.sum(lights[lind]*inv_distances[lind]*angle_scale[lind])/(influence_scale)
-        right_tot = np.sum(self.influence_skew[rind]*inv_distances[rind]*angle_scale[rind])/(influence_scale)
-        left_tot = np.sum(self.influence_skew[lind]*inv_distances[lind]*angle_scale[lind])/(influence_scale)
+        # right_tot = np.sum((lights[rind]/255)*inv_distances[rind]*angle_scale[rind])/(influence_scale)
+        # left_tot = np.sum((lights[lind]/255)*inv_distances[lind]*angle_scale[lind])/(influence_scale)
+        right_tot = np.sum(self.influence_skew[rind]*inv_distances[rind]*angle_scale[rind])*(influence_scale)
+        left_tot = np.sum(self.influence_skew[lind]*inv_distances[lind]*angle_scale[lind])*(influence_scale)
+        # right_tot = np.sum(inv_distances[rind]*angle_scale[rind])
+        # left_tot = np.sum(inv_distances[lind]*angle_scale[lind])
 
         return right_tot, left_tot, valid_ind
 
@@ -167,26 +264,27 @@ class robot_class():
         # find the relative coords of the matrix to the current point
         diff = big_coords - c
 
-        # create a list of distances between current robot and others (reuse the variable diff from above)
-        inv_distances, valid_dist_ind = self.distance_calc(diff, r, lim_distance)
+        # create a list of distances between current robot and others
+        inv_distances, valid_dist_ind, distances = self.distance_calc(diff, r, lim_distance)
 
-        # include directionality of light
-        angle_scale, valid_angle_ind = self.angle_calc(r, lim_angle, big_coords, big_angles)
-
+        # include directional constraints as needed and distance/angle scaling
+        angle_scale, valid_angle_ind = self.angle_calc(diff, r, lim_angle, big_coords, big_angles)
         right_tot, left_tot, valid_ind = self.direction_calc(self.angles[r], diff, valid_angle_ind, valid_dist_ind, inv_distances, angle_scale, influence_scale, big_lights)
 
-        # set the light value to the sum
-        light = (left_tot+right_tot)/self.lightscale
+        # set the light value to the sum of stimulus intensity for visualization
+        light = (left_tot+right_tot)*self.lightscale
 
         # cap values
         if(light>1):
             light=1
+        if(light<0):
+            light=0 # light started going negative for some reason?
         if(right_tot>1):
             right_tot=1
         if(left_tot>1):
             left_tot=1
 
-        # then move the agents
+        # then update heading left or right
         if(self.attract):
             if(left_tot>right_tot):
                 self.angles[r] += left_tot*self.angle_incr
@@ -206,51 +304,55 @@ class robot_class():
             self.v[r] = (light)*self.max_vel
         else:
             self.v[r] = (1-light)*self.max_vel
-        # print(robots.v[r])
-
-        
 
         # normalize and set
-        # print(light)
         self.lights[r] = np.ceil(255*light)
 
-        ###### record chain lengths #######
-        if("chain" in metric):
-            # create a list of the values that should be zeroed out
-            # ind = np.intersect1d(valid_dist_ind, valid_angle_ind)
-            bad_ind = np.setdiff1d(np.arange(5*n), valid_ind)  # inverse the ind list
-            # create lists with these values zeroed out
-            temp_light = big_lights.copy()
-            temp_light[bad_ind] = 0
-            temp_dist = inv_distances.copy()
-            temp_dist[bad_ind] = 0
-            temp_angle = angle_scale.copy()
-            temp_angle[bad_ind] = 0
-            # then compile down into length n arrays
-            temp_light = temp_light[0:n]+temp_light[n:2*n]+temp_light[2*n:3*n]+temp_light[3*n:4*n]+temp_light[4*n:5*n]
-            temp_dist = temp_dist[0:n]+temp_dist[n:2*n]+temp_dist[2*n:3*n]+temp_dist[3*n:4*n]+temp_dist[4*n:5*n]
-            temp_angle = temp_angle[0:n]+temp_angle[n:2*n]+temp_angle[2*n:3*n]+temp_angle[3*n:4*n]+temp_angle[4*n:5*n]
-            # calculate total influence
-            total = (temp_light*temp_dist*temp_angle)/(influence_scale)
-            # unweight the graph
-            total = np.array(total)
-            total[total<split] = 0
-            total[total>=split] = 1
-            # add the agents in total to every group where they intersect
-            gi = np.where(np.sum(np.logical_and(group_list,total),axis=1)[0]>0)[0]
-            # print(gi)
-            if(np.any(gi)):
-                group_list[gi] = np.logical_or(group_list[gi],total)
-            # if they don't interesct anywhere, create a new group
-            else:
-                group_list.append(total)
+        # TODO: this only will work if we have only one of these metrics in the
+        # list of metrics
+        # and it throws an error ("element-wise comparison failed")
         if("dist" in metric):
             dist = np.linalg.norm(self.coords - c,axis=1)
             return dist
         if("fig" in metric):
             return light
+        if("nnd" in metric):
+            return np.amin(distances)
         else:
             return 0
 
 
+# not using, may revisit this concept later
+def chain_calc(self, metric, big_lights, valid_ind, inv_distances, angle_scale):
 
+    # currently not using
+    if metric == "chain":
+        # create a list of the values that should be zeroed out
+        # ind = np.intersect1d(valid_dist_ind, valid_angle_ind)
+        bad_ind = np.setdiff1d(np.arange(5*self.num), valid_ind)  # inverse the ind list
+        # create lists with these values zeroed out
+        temp_light = big_lights.copy()
+        temp_light[bad_ind] = 0
+        temp_dist = inv_distances.copy()
+        temp_dist[bad_ind] = 0
+        temp_angle = angle_scale.copy()
+        temp_angle[bad_ind] = 0
+        # then compile down into length n arrays
+        temp_light = temp_light[0:n]+temp_light[n:2*n]+temp_light[2*n:3*n]+temp_light[3*n:4*n]+temp_light[4*n:5*n]
+        temp_dist = temp_dist[0:n]+temp_dist[n:2*n]+temp_dist[2*n:3*n]+temp_dist[3*n:4*n]+temp_dist[4*n:5*n]
+        temp_angle = temp_angle[0:n]+temp_angle[n:2*n]+temp_angle[2*n:3*n]+temp_angle[3*n:4*n]+temp_angle[4*n:5*n]
+        # calculate total influence
+        total = (temp_light*temp_dist*temp_angle)/(influence_scale)
+        # unweight the graph
+        total = np.array(total)
+        total[total<split] = 0
+        total[total>=split] = 1
+        # add the agents in total to every group where they intersect
+        gi = np.where(np.sum(np.logical_and(group_list,total),axis=1)[0]>0)[0]
+        # print(gi)
+        if(np.any(gi)):
+            group_list[gi] = np.logical_or(group_list[gi],total)
+        # if they don't interesct anywhere, create a new group
+        else:
+            group_list.append(total)
+        return group_list

@@ -4,6 +4,7 @@ import pygame
 import random
 import pandas as pd
 import os
+import glob
 
 import utils
 from robots import *
@@ -13,15 +14,21 @@ from robots import *
 SAVE_VID = True
 FPS = 55
 DEMO = 0
-tag = "aggression_lantern"
-vid_outname = "videos/"+tag+"_video.mp4"
-
+tag = "curiosity"
+type = "dir_dir"
+vid_name = tag+"_" + type + ".mp4"
+viddir = './videos'
 global_filename = "configs/global_config.yaml"
-c_filename = "configs/"+tag+"_config.yaml"
+c_filename = "configs/"+tag+".yaml"
 e_filename = "configs/env_config.yaml"
-# metric = np.array(["chain", "dist", "angle"])
+
 metric = np.array([])
-# split = 0.5
+
+########################## SETUP ##########################
+
+if not os.path.exists(viddir):
+    os.mkdir(viddir)
+vid_out = os.path.join(viddir, vid_name)
 
 # set up folder for saving frames
 if SAVE_VID:
@@ -30,7 +37,7 @@ if SAVE_VID:
     except OSError:
         pass
 
-sim_time, ss = utils.load_global_config(global_filename)
+sim_time, ss, num = utils.load_global_config(global_filename)
 obstacles = utils.load_environment_config(e_filename)
 width = ss # for vid
 height = ss # for vid
@@ -64,7 +71,7 @@ for i in range(sim_data['x'].shape[0]):
 ########################## MAIN  ###########################################3
 
 # init robots
-robots = robot_class(global_filename, c_filename, ss, 1)
+robots = Robots(global_filename, c_filename, type, ss, 1)
 
 robots.coords = np.array([x_list,y_list]).T
 robots.angles = np.array(theta_list)
@@ -140,9 +147,27 @@ for time in range(sim_time):
     # update the display
     pygame.display.flip()
 
-if SAVE_VID:
-    cmd = str(f"ffmpeg -r {FPS} -f image2 -i {tag}_frames/%04d.png -y -qscale 0 -s {width}x{height} {vid_outname}")
-    os.system(cmd)
-
 # quit
 pygame.quit()
+
+########################## SAVE TO VID ###########################################
+
+if SAVE_VID:
+    cmd = str(f"ffmpeg -r {FPS} -f image2 -i {tag}_frames/%04d.png -y -qscale 0 -s {width}x{height} {vid_out}")
+    os.system(cmd)
+
+    # remove frames when done: python should wait...
+    # TODO switch to using subprocess lib
+    # or maybe pathlib
+    files = glob.glob('./'+tag+'_frames/*.png')
+    for f in files:
+        try:
+            os.unlink(f)
+        except OSError as e:
+            print("Error: %s : %s" % (f, e.strerror))
+            pass
+
+    try:
+        os.rmdir('./'+tag+'_frames')
+    except OSError as e:
+        pass
