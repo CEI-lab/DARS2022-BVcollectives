@@ -99,12 +99,18 @@ def test_utils_setup_big_arrays_2():
 
 # basic test
 def test_utils_bounce_1():
-
     edge = ((-10,0),(10,0))
     prev_c = np.array([-1,np.sqrt(3)])
     new_c = np.array([1,-np.sqrt(3)])
     angle = utils.bounce(edge, prev_c, new_c)
     np.testing.assert_almost_equal(angle, np.pi/3.)
+
+def test_utils_bounce_2():
+    edge = ((-10,0),(10,0))
+    prev_c = np.array([0,-1])
+    new_c = np.array([0,1])
+    angle = utils.bounce(edge, prev_c, new_c)
+    np.testing.assert_almost_equal(angle, 3*np.pi/2.)
 
 def test_utils_inpoly_1():
     poly = [[-100, -100], [100, -100], [100, 100], [-100, 100]]
@@ -1158,6 +1164,7 @@ test_utils_setup_big_arrays_2()
 print("passed big_array tests")
 
 test_utils_bounce_1()
+test_utils_bounce_2()
 test_utils_inpoly_1()
 test_utils_inpoly_2()
 print("passed utils tests\n")

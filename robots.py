@@ -11,13 +11,13 @@ class Robots():
 
         self.ss = ss
         self.num = num
-        # coords = np.random.choice([x for x in range(int(np.ceil(ss*0.2)),int(np.ceil(ss*0.8)),1)],num*2)
         if(DEMO):
             coords = utils.hardcoded_gen_coords(ss,num)
         else:
-            coords = np.random.choice([x for x in range(self.ss)],num*2)
-            coords.resize(num,2)
-        self.coords = np.array(coords)
+            coords = np.random.Generator.choice([x for x in range(self.ss)],num*2)
+            coords.reshape((num,2))
+        self.coords = np.array(coords, dtype=float)
+        self.disp_coords = np.array(coords, dtype=int)
         self.v = np.full(num,params["robot_vel"])
         self.angles = np.random.random(num)*2*np.pi
         # self.angles = np.full(num,np.pi/4)
@@ -52,20 +52,20 @@ class Robots():
 
     def update_movement(self, r, noise_factor):
         c = self.coords[r]
-        # print(c)
         # add movement noise
         self.v[r] = self.v[r]+np.random.normal(0,noise_factor*self.max_vel)
         # cap value
         if(self.v[r]>4):
-            self.v[r]=4
+            self.v[r]=4.0
         elif(self.v[r]<0):
-            self.v[r]=0
+            self.v[r]=0.0
         self.angles[r] = (self.angles[r]+np.random.normal(0,noise_factor*np.pi))%(2*np.pi)
         xnew = c[0] + self.v[r]*np.cos(self.angles[r])
-        ynew = c[1] + self.v[r]*np.sin(self.angles[r])
+        ynew = c[1] - self.v[r]*np.sin(self.angles[r])
 
         # update coords, respects torus
         self.coords[r] = np.array(utils.wrap_pt([xnew, ynew], self.ss, self.ss, offset=(0,0)))
+        self.disp_coords[r] = self.coords[r].astype(int)
 
     def distance_calc(self, diff, r, lim_distance):
         distances = np.linalg.norm(diff,axis=1)
@@ -203,22 +203,15 @@ class Robots():
     # TODO: what is influence skew? *this is for the demo where one of the agents has significantly greater influence than the other agents
     def direction_calc(self, heading, diff, valid_angle_ind, valid_dist_ind, inv_distances, angle_scale, influence_scale, lights):
         valid_ind = np.intersect1d(valid_angle_ind, valid_dist_ind)
-        rind, lind = utils.pts_left_right(heading, diff)
-        rind = np.intersect1d(rind, valid_ind)
-        lind = np.intersect1d(lind, valid_ind)
-
-        # print(valid_ind)
+        rind_all, lind_all = utils.pts_left_right(heading, diff)
+        rind = np.intersect1d(rind_all, valid_ind)
+        lind = np.intersect1d(lind_all, valid_ind)
 
         # calc right and left
-        # right_tot = np.sum((lights[rind]/255)*inv_distances[rind]*angle_scale[rind])/(influence_scale)
-        # left_tot = np.sum((lights[lind]/255)*inv_distances[lind]*angle_scale[lind])/(influence_scale)
         right_tot = np.sum(self.influence_skew[rind]*inv_distances[rind]*angle_scale[rind])*(influence_scale)
         left_tot = np.sum(self.influence_skew[lind]*inv_distances[lind]*angle_scale[lind])*(influence_scale)
-        # right_tot = np.sum(inv_distances[rind]*angle_scale[rind])
-        # left_tot = np.sum(inv_distances[lind]*angle_scale[lind])
 
         return right_tot, left_tot, valid_ind
-
 
 
     # assume polygon obstacles do not have holes
@@ -227,34 +220,37 @@ class Robots():
         c = self.coords[r]
         loc_wrapped = utils.wrap_pt(c, self.ss, self.ss) # just in case? obstacle checking assumes we're in (0,ss)x(0,ss)
 
-        # shoot ray back the way to both
-        # check if we're inside obstacle
-        # and find which edge we collide with in case of collision
+        # shoot ray back the way agent moved in last time step to both:
+        # 1. check if we're inside obstacle
+        # 2. and find which edge we collide with in case of collision
         ray_out = prev_c - c
         theta = np.arctan2(ray_out[1], ray_out[0])
         for o in obstacles: # list of CCW points
             inpoly = False
             # shoot one ray for each obstacle, then check edges individually if inside
             try:
-                inpoly, data = utils.IsInPolyNoHoles(loc_wrapped, o, theta)
-            except: # incoming vector was parallel to polygon edge
+                inpoly, data = utils.IsInPolyNoHoles(loc_wrapped, o, self.ss, theta)
+            except:
+                # will raise exception if ray is parallel to polygon edge
+                # TODO handle gracefully
                 raise(ValueError, "in poly check not working")
 
             if inpoly:
                 closest_edge = data[0][1:]
                 dist = 100000000
-                # following check not really necessary for our purposes
+                # following check for closest edge not really necessary for our purposes
                 # but ray may intersect multiple edges if obstacle nonconvex
                 for pt, v1, v2 in data:
                     if np.linalg.norm(pt-c) < dist:
                         dist = np.linalg.norm(pt-c)
                         closest_edge = (v1, v2)
-                        theta = utils.bounce(closest_edge, prev_c, c)
+                        # reorient according to elastic collision law
+                        theta = utils.bounce(closest_edge, prev_c, c, self.ss)
                 # move to previous location and rotate in place
                 self.angles[r] = theta
                 self.coords[r] = prev_c
                 MADE_CHANGE = True
-                break # assume only in one obstacle at a time lol
+                break # assumes obstacles do not overlap
             else:
                 pass
 
@@ -297,7 +293,7 @@ class Robots():
                 self.angles[r] += right_tot*self.angle_incr
 
         # normalize
-        self.angles[r] = self.angles[r]%(2*np.pi)
+        self.angles[r] %= (2*np.pi)
 
         # update velocity value of this robot
         if(self.speed_up):

@@ -20,7 +20,7 @@ previous_time_test = time.time()
 #variables for saving data
 
 tag = "fear"
-type = "dir_dir"
+type = "dir_omni"
 
 vid_outname = "videos/demo_video.mp4"
 global_filename = "configs/global_demo_config.yaml"
@@ -40,6 +40,7 @@ if SAVE_VID:
 sim_data = []
 sim_time, ss, num = utils.load_global_config(global_filename)
 obstacles = utils.load_environment_config(e_filename)
+obstacles = []
 width = ss # for vid
 height = ss # for vid
 
@@ -56,7 +57,7 @@ colors = utils.gen_colors(20)
 robots = Robots(global_filename, c_filename, type, ss, DEMO)
 # make sure controllable robot has influence
 robots.lights[0] = 100000
-robots.v[0] = 1
+robots.v[0] = 0.5
 
 group_list = [np.zeros(robots.num)]
 
@@ -79,29 +80,29 @@ while(running):
         # move controlable agent
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_LEFT or event.key == ord('a'):
-                robots.angles[0] -= np.pi/12
-                robots.angles[0] %= 2*np.pi
+                robots.angles[0] += np.pi/12
+                robots.angles[0] %= (2*np.pi)
                 print("theta: " + str(robots.angles[0]))
             if event.key == pygame.K_RIGHT or event.key == ord('d'):
-                robots.angles[0] += np.pi/12
-                robots.angles[0] %= 2*np.pi
+                robots.angles[0] -= np.pi/12
+                robots.angles[0] %= (2*np.pi)
                 print("theta: " + str(robots.angles[0]))
             if event.key == pygame.K_UP or event.key == ord('w'):
                 if(robots.v[0]<=3.5):
-                    robots.v[0]+=0.5
+                    robots.v[0]+=0.1
                 print("velocity: " + str(robots.v[0]))
             if event.key == pygame.K_DOWN or event.key == ord('s'):
-                if(robots.v[0]>=0.5):
-                    robots.v[0]-=0.5
+                if(robots.v[0]>=0.1):
+                    robots.v[0]-=0.1
                 print("velocity: " + str(robots.v[0]))
             # change behavior
-            if event.key == event.key == ord('1'):
+            if event.key == ord('1'):
                 if(robots.attract == 0):
                     robots.attract = 1
                 else:
                     robots.attract = 0
                 print("attract: " + str(robots.attract))
-            if event.key == event.key == ord('2'):
+            if event.key == ord('2'):
                 if(robots.speed_up == 0):
                     robots.speed_up = 1
                 else:
@@ -120,16 +121,17 @@ while(running):
 
     # setup big arrays for each frame
     big_coords, big_lights, big_angles = utils.setup_big_arrays(robots)
-    # print(robots.angles)
 
     # update controllable robot
     c = robots.coords[0].copy()
     robots.update_movement(0, robots.noise_factor)
-    # print(robots.angles[0])
     retval = robots.check_collision(0, obstacles, c)
-    pygame.draw.circle(screen, np.minimum(255,robots.lights[0])*colors[0], np.ceil(robots.coords[0]), 8)
+    if retval:
+        print(f"Agent 0 bounced, theta = {robots.angles[0]}")
+    cc = robots.disp_coords[0]
+    pygame.draw.circle(screen, np.minimum(255,robots.lights[0])*colors[0], np.ceil(cc), 8)
+    pygame.draw.line(screen, np.minimum(255,robots.lights[0])*colors[0], np.ceil(cc), np.ceil(np.array(cc)+15*np.array([np.cos(robots.angles[0]),-np.sin(robots.angles[0])])), 3)
 
-    # print(robots.lights)
 
     # update robot positions
     for r in range(1,robots.num):
@@ -144,10 +146,11 @@ while(running):
         retval = robots.check_collision(r, obstacles, c)
 
         # draw a solid blue circle in the center
-        pygame.draw.circle(screen, robots.lights[r]*colors[r], np.ceil(robots.coords[r]), 5)
+        cdisp = robots.disp_coords[r]
+        pygame.draw.circle(screen, robots.lights[r]*colors[r], np.ceil(cdisp), 5)
 
         # draw a line to show orientation
-        pygame.draw.line(screen, robots.lights[r]*colors[r], np.ceil(robots.coords[r]), np.ceil(np.array(robots.coords[r])+15*np.array([np.cos(robots.angles[r]),np.sin(robots.angles[r])])), 3)
+        pygame.draw.line(screen, robots.lights[r]*colors[r], np.ceil(cdisp), np.ceil(np.array(cdisp)+15*np.array([np.cos(robots.angles[r]),-np.sin(robots.angles[r])])), 3)
 
         # update light
         return_data = robots.update_light(r, robots.num, robots.coords[r], big_coords.copy(), big_angles.copy(), big_lights.copy(), group_list, metric, robots.lim_angle, robots.lim_distance, robots.influence_scale, robots.split)
