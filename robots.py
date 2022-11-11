@@ -14,8 +14,9 @@ class Robots():
         if(DEMO):
             coords = utils.hardcoded_gen_coords(ss,num)
         else:
-            coords = np.random.Generator.choice([x for x in range(self.ss)],num*2)
-            coords.reshape((num,2))
+            rng = np.random.default_rng()
+            coords = rng.choice(np.arange(self.ss),size=num*2)
+            coords = np.reshape(coords,(num,2))
         self.coords = np.array(coords, dtype=float)
         self.disp_coords = np.array(coords, dtype=int)
         self.v = np.full(num,params["robot_vel"])
@@ -229,7 +230,7 @@ class Robots():
             inpoly = False
             # shoot one ray for each obstacle, then check edges individually if inside
             try:
-                inpoly, data = utils.IsInPolyNoHoles(loc_wrapped, o, self.ss, theta)
+                inpoly, data = utils.IsInPolyNoHoles(loc_wrapped, o, theta)
             except:
                 # will raise exception if ray is parallel to polygon edge
                 # TODO handle gracefully
@@ -245,7 +246,7 @@ class Robots():
                         dist = np.linalg.norm(pt-c)
                         closest_edge = (v1, v2)
                         # reorient according to elastic collision law
-                        theta = utils.bounce(closest_edge, prev_c, c, self.ss)
+                        theta = utils.bounce(closest_edge, prev_c, c)
                 # move to previous location and rotate in place
                 self.angles[r] = theta
                 self.coords[r] = prev_c

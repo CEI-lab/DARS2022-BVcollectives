@@ -28,11 +28,11 @@ def wrap_pt(pt, w, h, offset = (0,0)):
 # assumes bot r has moved through edge segment to the wrong side
 # takes previous position (assumes to be outside obstacle) as input
 # mirrors heading across normal
-def bounce(edge, prev_c, new_c, ss):
-    x1, y1 = flipPoint(edge[0], ss)
-    x2, y2 = flipPoint(edge[1], ss)
+def bounce(edge, prev_c, new_c):
+    x1, y1 = edge[0]
+    x2, y2 = edge[1]
 
-    invec = flipPoint(new_c, ss) - flipPoint(prev_c, ss)
+    invec = new_c - prev_c
 
     normal = np.array([y1-y2, x2-x1]) # pointing out
     nhat = normal / np.linalg.norm(normal)
@@ -40,10 +40,9 @@ def bounce(edge, prev_c, new_c, ss):
     # https://math.stackexchange.com/questions/13261/how-to-get-a-reflection-vector
     r = invec - 2*np.dot(invec, nhat)*nhat
 
-    # flip result for graphics
-    heading = np.pi - np.arctan2(r[1], r[0])
+    heading = np.arctan2(r[1], r[0])
 
-    return heading % (2*np.pi)
+    return heading
 
 def setup_big_array(small, offset):
     n = small.shape[0]
@@ -133,36 +132,23 @@ def ShootRay(state, v1, v2):
         pint = np.array([pt[0] + np.cos(theta)*t, pt[1] + np.sin(theta)*t])
         return t, u, pint, v1, v2 # return edge end points for ease of identifying edges crossed
 
-# FLIP Y AXIS BECAUSE OF GRAPHICS COORDINATES
-def flipPoint(pt, ss):
-    x, y = pt
-    return np.array([x, ss-y])
-
-def flipArray(pts, ss):
-    pts = np.array(pts)
-    for pt in pts:
-        pt = flipPoint(pt, ss)
-    return pts
 
 # any theta will work unless parallel to an edge
-def IsInPolyNoHoles(p, vs, ss, theta = 0.):
+def IsInPolyNoHoles(p, vs, theta = 0.):
     ''' test if point p is in poly using crossing number.
     Note: this does not work with holes
-# FLIP Y AXIS BECAUSE OF GRAPHICS COORDINATES
     '''
     intersects = 0
-    state=(p[0],ss-p[1],np.pi-theta)
+    state=(p[0],p[1],theta)
     psize = len(vs)
-    obs = np.flip(flipArray(vs,ss),0) # reverse order in mirror land
     int_data = []
     for j in range(psize):
-        v1, v2 = obs[j], obs[(j+1) % psize]
+        v1, v2 = np.array(vs[j]), np.array(vs[(j+1) % psize])
         try:
             t, u, pt, v1, v2 = ShootRay(state, v1, v2)
             if t>0 and (0 < u) and (u < 1):
                 intersects += 1
-                # flip back to graphics coordinates
-                int_data.append(flipArray([pt,v1,v2],ss))
+                int_data.append([pt,v1,v2])
         except: # ray parallel to edge
             pass
     return (not (intersects%2 == 0)), int_data # return edges that intersect

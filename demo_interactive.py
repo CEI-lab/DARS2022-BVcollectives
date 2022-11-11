@@ -40,7 +40,7 @@ if SAVE_VID:
 sim_data = []
 sim_time, ss, num = utils.load_global_config(global_filename)
 obstacles = utils.load_environment_config(e_filename)
-obstacles = []
+#obstacles = []
 width = ss # for vid
 height = ss # for vid
 

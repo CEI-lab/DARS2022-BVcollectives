@@ -13,19 +13,19 @@ import robots as rb
 sim_data = []
 
 global_filename = "configs/figure_config.yaml"
-c_filename = "configs/love_config.yaml"
-# metric = np.array(["chain", "dist", "angle"])
+c_filename = "configs/love.yaml"
+type = "dir_dir"
 metric = np.array([])
 split = 0.5
 
 ############################### MAIN ##############################################
 
-sim_time, ss = utils.load_global_config(global_filename)
-
 # ss = 250 #screen size
+sim_time, ss, n = utils.load_global_config(global_filename)
+
 
 # init robots
-robots = rb.robot_class(global_filename, c_filename, ss)
+robots = rb.Robots(global_filename, c_filename, type, ss)
 
 # params
 rob_x = 205
@@ -38,14 +38,13 @@ robots.coords[0] = np.array([ss/2,125])
 mat = np.full((ss,ss), 127.)
 
 
-# big_coords, big_lights, big_angles = utils.setup_big_arrays(robots, ss)
 
 for y in range(ss):
     for x in range(ss):
         robots.coords[1] = np.array([x,y])
         robots.lights = np.full(2,255)
         robots.angles = np.full(2,np.pi/2)
-        big_coords, big_lights, big_angles = utils.setup_big_arrays(robots, ss)
+        big_coords, big_lights, big_angles = utils.setup_big_arrays(robots)
         
         light = robots.update_light(1, robots.num, np.array([x,y]), big_coords, big_angles, big_lights, [], ["fig"], robots.lim_angle, robots.lim_distance, robots.influence_scale, 0.5)
         # print(light)
