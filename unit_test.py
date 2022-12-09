@@ -110,7 +110,18 @@ def test_utils_bounce_2():
     prev_c = np.array([0,-1])
     new_c = np.array([0,1])
     angle = utils.bounce(edge, prev_c, new_c)
-    np.testing.assert_almost_equal(angle, 3*np.pi/2.)
+    a = angle % (2*np.pi)
+    np.testing.assert_almost_equal(a, 3*np.pi/2.)
+
+def test_utils_bounce_3():
+    edge = ((-10,0),(10,0)) # edge along x axis
+    prev_c = np.array([1,-1])
+    new_c = np.array([-1,1]) # should bounce at 45 degrees
+    angle = utils.bounce(edge, prev_c, new_c)
+    a = angle % (2*np.pi)
+    a_correct = (5*np.pi/4)
+    np.testing.assert_almost_equal(a, a_correct)
+
 
 def test_utils_inpoly_1():
     poly = [[-100, -100], [100, -100], [100, 100], [-100, 100]]
@@ -1165,6 +1176,7 @@ print("passed big_array tests")
 
 test_utils_bounce_1()
 test_utils_bounce_2()
+test_utils_bounce_3()
 test_utils_inpoly_1()
 test_utils_inpoly_2()
 print("passed utils tests\n")

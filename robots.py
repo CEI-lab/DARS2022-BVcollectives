@@ -60,9 +60,9 @@ class Robots():
             self.v[r]=4.0
         elif(self.v[r]<0):
             self.v[r]=0.0
-        self.angles[r] = (self.angles[r]+np.random.normal(0,noise_factor*np.pi))%(2*np.pi)
+        self.angles[r] = (self.angles[r]+np.random.normal(0,noise_factor*np.pi))
         xnew = c[0] + self.v[r]*np.cos(self.angles[r])
-        ynew = c[1] - self.v[r]*np.sin(self.angles[r])
+        ynew = c[1] + self.v[r]*np.sin(self.angles[r])
 
         # update coords, respects torus
         self.coords[r] = np.array(utils.wrap_pt([xnew, ynew], self.ss, self.ss, offset=(0,0)))

@@ -3,7 +3,7 @@ import numpy as np
 import utils
 import param_sweep
 
-iterations = 1
+iterations = 20
 
 if __name__ == '__main__':
 

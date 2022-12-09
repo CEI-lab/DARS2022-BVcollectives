@@ -2,7 +2,7 @@
 # All units are in pixels and discrete time iterations. Angles are as a proportion of pi.
 
 world:
-  sim_time: 500
+  sim_time: 1000
   screen_size: 500
 
 robot:
@@ -14,6 +14,6 @@ robot:
   rep_range: 0
   rep_factor: 3
   split: 0.5
-  lightscale: 0.1
+  lightscale: 2.0
   influence_scale: 2.5
-  noise_factor: 0.000138888
+  noise_factor: 0.00138888

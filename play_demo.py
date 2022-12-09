@@ -55,17 +55,19 @@ font = pygame.font.SysFont("Arial", 18)
 #stats_pos = (50,25)
 
 # import the data
-sim_data = pd.read_csv("data/test.csv",dtype=object)
+sim_data = pd.read_csv("data/demo.csv",dtype=object)
 
 x_list = []
 y_list = []
 theta_list = []
 light_list = []
+readnround = lambda x: int(float(x))
+
 for i in range(sim_data['x'].shape[0]):
-    x_list.append(list(map(int,sim_data['x'][i][1:-1].replace(" \n", "").split())))
-    y_list.append(list(map(int,sim_data['y'][i][1:-1].replace(" \n", "").split())))
+    x_list.append(list(map(readnround,sim_data['x'][i][1:-1].replace(" \n", "").split())))
+    y_list.append(list(map(readnround,sim_data['y'][i][1:-1].replace(" \n", "").split())))
     theta_list.append(list(map(float,sim_data['theta'][i][1:-1].replace(" \n", "").split())))
-    light_list.append(list(map(int,sim_data['light'][i][1:-1].replace(" \n", "").split())))
+    light_list.append(list(map(readnround,sim_data['light'][i][1:-1].replace(" \n", "").split())))
 
 
 ########################## MAIN  ###########################################3

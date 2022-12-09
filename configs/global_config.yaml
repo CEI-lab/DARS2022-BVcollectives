@@ -16,4 +16,4 @@ robot:
   split: 0.5
   lightscale: 2
   influence_scale: 1.5
-  noise_factor: 0.0138888
+  noise_factor: 0.00138888

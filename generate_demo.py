@@ -21,7 +21,7 @@ tag = "curiosity"
 type = "dir_dir"
 
 
-global_filename = "configs/global_config.yaml"
+global_filename = "configs/global_demo_config.yaml"
 c_filename = "configs/" + tag + ".yaml"
 e_filename = "configs/env_config.yaml"
 # metric = np.array(["nnd"])
@@ -63,7 +63,6 @@ for t in range(sim_time):
         return_data = robots.update_light(r, robots.num, robots.coords[r], big_coords.copy(), big_angles.copy(), big_lights.copy(), group_list, metric, robots.lim_angle, robots.lim_distance, robots.influence_scale, robots.split)
     
     sim_data.append([robots.coords[:,0].copy(), robots.coords[:,1].copy(), robots.angles.copy(), robots.lights.copy()])
-    # print(robots.lights)
 
 
 data = pd.DataFrame(data = sim_data, columns = ["x","y","theta","light"])
