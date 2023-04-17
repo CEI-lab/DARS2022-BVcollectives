@@ -11,6 +11,7 @@ from robots import *
 ########################## PARAMETERS ###########################################
 
 SAVE_DATA = False
+VIZGRID = False
 DEMO = True
 SAVE_VID = True
 FPS = 55
@@ -38,26 +39,26 @@ if SAVE_VID:
 ############################### MAIN ##############################################
 
 sim_data = []
-sim_time, ss, num = utils.load_global_config(global_filename)
-obstacles = utils.load_environment_config(e_filename)
+params = utils.load_config(global_filename)
+obstacles = utils.load_env(e_filename)
+# init robots
+robots = Robots(global_filename, c_filename, type, DEMO)
+# make sure controllable robot has influence
+robots.stimuli[0] = 100000
+robots.v[0] = 0.5
 #obstacles = []
-width = ss # for vid
-height = ss # for vid
+width = robots.ss # for vid
+height = robots.ss # for vid
 
 # set up env
 pygame.init()
-screen = pygame.display.set_mode([ss,ss])
+screen = pygame.display.set_mode([robots.ss,robots.ss])
 clock = pygame.time.Clock()
 font = pygame.font.SysFont("Arial", 18)
 
 # gen colors
 colors = utils.gen_colors(20)
 
-# init robots
-robots = Robots(global_filename, c_filename, type, ss, DEMO)
-# make sure controllable robot has influence
-robots.lights[0] = 100000
-robots.v[0] = 0.5
 
 group_list = [np.zeros(robots.num)]
 
@@ -120,7 +121,7 @@ while(running):
             pygame.draw.line(screen, (100,100,100), p1, p2)
 
     # setup big arrays for each frame
-    big_coords, big_lights, big_angles = utils.setup_big_arrays(robots)
+    big_coords, big_stimuli, big_angles = utils.setup_big_arrays(robots)
 
     # update controllable robot
     c = robots.coords[0].copy()
@@ -129,8 +130,8 @@ while(running):
     if retval:
         print(f"Agent 0 bounced, theta = {robots.angles[0]}")
     cc = robots.disp_coords[0]
-    pygame.draw.circle(screen, np.minimum(255,robots.lights[0])*colors[0], np.ceil(cc), 8)
-    pygame.draw.line(screen, np.minimum(255,robots.lights[0])*colors[0], np.ceil(cc), np.ceil(np.array(cc)+15*np.array([np.cos(robots.angles[0]),-np.sin(robots.angles[0])])), 3)
+    pygame.draw.circle(screen, np.minimum(255,robots.stimuli[0])*colors[0], np.ceil(cc), 8)
+    pygame.draw.line(screen, np.minimum(255,robots.stimuli[0])*colors[0], np.ceil(cc), np.ceil(np.array(cc)+15*np.array([np.cos(robots.angles[0]),-np.sin(robots.angles[0])])), 3)
 
 
     # update robot positions
@@ -147,18 +148,20 @@ while(running):
 
         # draw a solid blue circle in the center
         cdisp = robots.disp_coords[r]
-        pygame.draw.circle(screen, robots.lights[r]*colors[r], np.ceil(cdisp), 5)
+        pygame.draw.circle(screen, robots.stimuli[r]*colors[r], np.ceil(cdisp), 5)
 
         # draw a line to show orientation
-        pygame.draw.line(screen, robots.lights[r]*colors[r], np.ceil(cdisp), np.ceil(np.array(cdisp)+15*np.array([np.cos(robots.angles[r]),-np.sin(robots.angles[r])])), 3)
+        pygame.draw.line(screen, robots.stimuli[r]*colors[r], np.ceil(cdisp), np.ceil(np.array(cdisp)+15*np.array([np.cos(robots.angles[r]),-np.sin(robots.angles[r])])), 3)
 
-        # update light
-        return_data = robots.update_light(r, robots.num, robots.coords[r], big_coords.copy(), big_angles.copy(), big_lights.copy(), group_list, metric, robots.lim_angle, robots.lim_distance, robots.influence_scale, robots.split)
-        # print(robots.lights[r])
+        # update stim
+        return_data = robots.update_stim(r, robots.num, robots.coords[r], big_coords.copy(), big_angles.copy(),
+big_stimuli.copy(), group_list, metric, robots.lim_angle, robots.lim_distance, robots.influence_scale, robots.split)
+        # print(robots.stimuli[r])
 
     # save data
     if(SAVE_DATA):
-        sim_data.append([robots.coords[:,0].copy(), robots.coords[:,1].copy(), robots.angles.copy(), robots.lights.copy()])
+        sim_data.append([robots.coords[:,0].copy(), robots.coords[:,1].copy(), robots.angles.copy(),
+robots.stimuli.copy()])
 
     # update the fps counter
     # screen.blit(utils.update_fps(clock,font), (10,0))
@@ -178,7 +181,7 @@ while(running):
     pygame.display.flip()
 
 if(SAVE_DATA):
-    data = pd.DataFrame(data = sim_data, columns = ["x","y","theta","light"])
+    data = pd.DataFrame(data = sim_data, columns = ["x","y","theta","stim"])
     data.to_csv("data/demo.csv", line_terminator = "")
 
 if SAVE_VID:

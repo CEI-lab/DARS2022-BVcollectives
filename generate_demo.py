@@ -17,15 +17,14 @@ DEMO = 0
 #variables for saving data
 sim_data = []
 
-tag = "curiosity"
-type = "dir_dir"
+tag = "aggression"
+type = "dir_omni"
 
 
-global_filename = "configs/global_demo_config.yaml"
+global_filename = "configs/global_config.yaml"
 c_filename = "configs/" + tag + ".yaml"
 e_filename = "configs/env_config.yaml"
-# metric = np.array(["nnd"])
-metric = np.array([])
+metric = np.array([]) # leaving for future integration w/ QD algorithms
 
 datadir = './data'
 if not os.path.exists(datadir):
@@ -34,20 +33,24 @@ if not os.path.exists(datadir):
 
 ############################### MAIN ##############################################
 
-sim_time, ss, num = utils.load_global_config(global_filename)
-if(DEMO):
-    obstacles = utils.load_environment_config(e_filename)
+### Load Configs
 
-# init robots
-robots = Robots(global_filename, c_filename, type, ss, DEMO)
+gparams = utils.load_config(global_filename)
+sim_time, ss = gparams["sim_time"], gparams["screen_size"]
+
+if(DEMO):
+    dparams = utils.load_config(e_filename)
+    obstacles = dparams["obstacles"]
+
+robots = Robots(global_filename, c_filename, type, DEMO)
 
 group_list = [np.zeros(robots.num)]
 
-# sim loop
-for t in range(sim_time):
-    # print(robots.lights)
+### Simulation Loop
 
-    big_coords, big_lights, big_angles = utils.setup_big_arrays(robots)
+for t in range(sim_time):
+
+    big_coords, big_stimuli, big_angles = utils.setup_big_arrays(robots)
 
     for r in range(robots.num):
         c = robots.coords[r].copy() # save previous position in case of collision
@@ -59,14 +62,14 @@ for t in range(sim_time):
         if(DEMO):
             retval = robots.check_collision(r, obstacles, c)
 
-        # update light
-        return_data = robots.update_light(r, robots.num, robots.coords[r], big_coords.copy(), big_angles.copy(), big_lights.copy(), group_list, metric, robots.lim_angle, robots.lim_distance, robots.influence_scale, robots.split)
-    
-    sim_data.append([robots.coords[:,0].copy(), robots.coords[:,1].copy(), robots.angles.copy(), robots.lights.copy()])
+        # update stimuli
+        return_data = robots.update_stim(r, robots.num, robots.coords[r], big_coords.copy(), big_angles.copy(), big_stimuli.copy(), group_list, metric, robots.lim_angle, robots.lim_distance, robots.influence_scale, robots.split)
+
+    sim_data.append([robots.coords[:,0].copy(), robots.coords[:,1].copy(), robots.angles.copy(), robots.stimuli.copy()])
 
 
-data = pd.DataFrame(data = sim_data, columns = ["x","y","theta","light"])
+data = pd.DataFrame(data = sim_data, columns = ["x","y","theta","stim"])
 
 outdat = os.path.join(datadir, "demo.csv")
 
-data.to_csv(outdat, line_terminator = "")
+data.to_csv(outdat, lineterminator = "")

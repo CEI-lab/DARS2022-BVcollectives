@@ -4,6 +4,7 @@
 world:
   sim_time: 1000
   screen_size: 500
+  grid_num: 50
 
 robot:
   robot_vel: 4.
@@ -14,6 +15,6 @@ robot:
   rep_range: 0
   rep_factor: 3
   split: 0.5
-  lightscale: 2
+  stimscale: 2
   influence_scale: 1.5
-  noise_factor: 0.00138888
+  noise_factor: 0.0138

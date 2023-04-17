@@ -61,7 +61,7 @@ def setup_big_arrays(robots):
     n = robots.num
     ss = robots.ss
     big_coords = setup_big_array(robots.coords, ss)
-    big_lights = np.array([robots.lights]*5).flatten()
+    big_stimuli = np.array([robots.stimuli]*5).flatten()
 
     big_angles = np.zeros((5*n))
     big_angles[0:n] = robots.angles
@@ -70,7 +70,7 @@ def setup_big_arrays(robots):
     big_angles[3*n:4*n] = robots.angles
     big_angles[4*n:5*n] = robots.angles
 
-    return big_coords, big_lights, big_angles
+    return big_coords, big_stimuli, big_angles
 
 # returns +1 if v2 is pointing to the left of an agent looking along v1
 # return -1 otherwise
@@ -160,72 +160,54 @@ def hardcoded_gen_coords(ss, num):
     return first_half
 
 ### FILE HANDLING
+#
+# TODO maybe separate environments and robots completely for easier batch processing
 
-def load_global_config(filename):
+def load_config(filename):
     try:
         with open(filename) as file:
             param_list = yaml.load(file,Loader=yaml.FullLoader)
 
-        # print(param_list)
-        # TODO cast here to desired type: int for all?
-        sim_time = param_list["world"]["sim_time"]
-        ss = param_list["world"]["screen_size"]
-        n = param_list["robot"]["num_robots"]
+        params = {k: float(v) for section in param_list
+                       for k, v in param_list[section].items()} # unpack yaml
 
+        # Data sanitization as needed
+        for key in ["sim_time", "screen_size", "grid_num", "num_robots"]:
+            params[key] = int(params[key])
 
-        return sim_time, ss, n
+        return params
     except Exception as e:
         print("Error loading file: " + str(filename))
         print(e)
         raise Exception("Error loading file: " + str(filename))
 
-def load_environment_config(filename):
+# for loading view of specific subtype in file
+# used for various sensing constraints on same behavior
+def load_typed_config(filename, type):
+    params = {}
     try:
         with open(filename) as file:
-            param_list = yaml.load(file,Loader=yaml.FullLoader)
+            all_params = yaml.load(file,Loader=yaml.FullLoader)
+            params = {k: v for d in all_params[type] for k, v in d.items()} # unpack yaml
+        return params
+    except Exception as e:
+        print("Error loading file: " + str(filename))
+        print(e)
+        raise Exception("Error loading file: " + str(filename))
 
-        obstacles = param_list["obstacles"]
-
+# load environment
+# currently only loads a list of polygonal obstacles
+def load_env(filename):
+    params = {}
+    try:
+        with open(filename) as file:
+            all_params = yaml.load(file,Loader=yaml.FullLoader)
+            obstacles = all_params["obstacles"]
         return obstacles
     except Exception as e:
         print("Error loading file: " + str(filename))
         print(e)
         raise Exception("Error loading file: " + str(filename))
-
-def load_robot_config(filename):
-    params = {}
-    try:
-        with open(filename) as file:
-            param_list = yaml.load(file,Loader=yaml.FullLoader)
-
-            params["robot_vel"] = param_list["robot"]["robot_vel"]
-            params["lim_distance"] = param_list["robot"]["lim_distance"]
-            params["lim_angle"] = param_list["robot"]["lim_angle"]*np.pi
-            params["angle_incr"] = param_list["robot"]["angle_incr"]*np.pi
-            params["rep_range"] = param_list["robot"]["rep_range"]
-            params["rep_factor"] = param_list["robot"]["rep_factor"]
-            params["lightscale"] = param_list["robot"]["lightscale"]
-            params["influence_scale"] = param_list["robot"]["influence_scale"]
-            params["noise_factor"] = param_list["robot"]["noise_factor"]
-            params["split"] = param_list["robot"]["split"]
-            params["num_robots"] = param_list["robot"]["num_robots"]
-        return params
-    except Exception as e:
-        print("Error loading file: " + str(filename))
-        print(e)
-        raise Exception("Error loading file: " + str(filename))
-
-def load_behavior_config(filename):
-    params = {}
-    try:
-        with open(filename) as file:
-            params = yaml.load(file,Loader=yaml.FullLoader)
-        return params
-    except Exception as e:
-        print("Error loading file: " + str(filename))
-        print(e)
-        raise Exception("Error loading file: " + str(filename))
-
 
 ### PYGAME
 
