@@ -7,14 +7,14 @@ world:
   grid_num: 25
 
 robot:
-  num_robots: 20
-  robot_vel: 4.
+  num_robots: 40
+  robot_vel: 3.
   lim_distance: 200
-  lim_angle: 0.5
+  lim_angle: 0.75
   angle_incr: 0.1
   rep_range: 0
   rep_factor: 3
   split: 0.5
-  stimscale: 2.0
-  influence_scale: 2.5
-  noise_factor: 0.00138888
+  stimscale: 1.0
+  influence_scale: 2.0
+  noise_factor: 0.0138888

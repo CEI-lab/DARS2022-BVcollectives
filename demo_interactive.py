@@ -14,13 +14,13 @@ SAVE_DATA = False
 VIZGRID = False
 DEMO = True
 SAVE_VID = True
-FPS = 55
+FPS = 15
 
 previous_time_test = time.time()
 
 #variables for saving data
 
-tag = "fear"
+tag = "aggression"
 type = "dir_omni"
 
 vid_outname = "videos/demo_video.mp4"
@@ -44,7 +44,7 @@ obstacles = utils.load_env(e_filename)
 # init robots
 robots = Robots(global_filename, c_filename, type, DEMO)
 # make sure controllable robot has influence
-robots.stimuli[0] = 100000
+robots.stimuli[0] = 1000
 robots.v[0] = 0.5
 #obstacles = []
 width = robots.ss # for vid
@@ -57,7 +57,7 @@ clock = pygame.time.Clock()
 font = pygame.font.SysFont("Arial", 18)
 
 # gen colors
-colors = utils.gen_colors(20)
+colors = utils.gen_colors(robots.num)
 
 
 group_list = [np.zeros(robots.num)]
@@ -81,11 +81,11 @@ while(running):
         # move controlable agent
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_LEFT or event.key == ord('a'):
-                robots.angles[0] += np.pi/12
+                robots.angles[0] -= np.pi/12
                 robots.angles[0] %= (2*np.pi)
                 print("theta: " + str(robots.angles[0]))
             if event.key == pygame.K_RIGHT or event.key == ord('d'):
-                robots.angles[0] -= np.pi/12
+                robots.angles[0] += np.pi/12
                 robots.angles[0] %= (2*np.pi)
                 print("theta: " + str(robots.angles[0]))
             if event.key == pygame.K_UP or event.key == ord('w'):
@@ -131,7 +131,7 @@ while(running):
         print(f"Agent 0 bounced, theta = {robots.angles[0]}")
     cc = robots.disp_coords[0]
     pygame.draw.circle(screen, np.minimum(255,robots.stimuli[0])*colors[0], np.ceil(cc), 8)
-    pygame.draw.line(screen, np.minimum(255,robots.stimuli[0])*colors[0], np.ceil(cc), np.ceil(np.array(cc)+15*np.array([np.cos(robots.angles[0]),-np.sin(robots.angles[0])])), 3)
+    pygame.draw.line(screen, np.minimum(255,robots.stimuli[0])*colors[0], np.ceil(cc), np.ceil(np.array(cc)+15*np.array([np.cos(robots.angles[0]),np.sin(robots.angles[0])])), 3)
 
 
     # update robot positions
@@ -151,7 +151,7 @@ while(running):
         pygame.draw.circle(screen, robots.stimuli[r]*colors[r], np.ceil(cdisp), 5)
 
         # draw a line to show orientation
-        pygame.draw.line(screen, robots.stimuli[r]*colors[r], np.ceil(cdisp), np.ceil(np.array(cdisp)+15*np.array([np.cos(robots.angles[r]),-np.sin(robots.angles[r])])), 3)
+        pygame.draw.line(screen, robots.stimuli[r]*colors[r], np.ceil(cdisp), np.ceil(np.array(cdisp)+15*np.array([np.cos(robots.angles[r]),np.sin(robots.angles[r])])), 3)
 
         # update stim
         return_data = robots.update_stim(r, robots.num, robots.coords[r], big_coords.copy(), big_angles.copy(),
